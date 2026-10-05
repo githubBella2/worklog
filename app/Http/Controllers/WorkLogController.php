@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\WorkLog;
+use App\Services\WorkLogAiService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class WorkLogController extends Controller
 {
+    public function __construct(
+        protected WorkLogAiService $aiService
+    ) {}
+
     /**
      * Display a timeline listing of the work logs grouped by date.
      */
@@ -85,202 +89,74 @@ class WorkLogController extends Controller
         $file->move($destinationPath, $filename);
         $audioRelativePath = 'uploads/audio_logs/'.$filename;
         $fullPath = public_path($audioRelativePath);
+        $mimeType = $file->getClientMimeType() ?: 'audio/webm';
 
-        $apiKey = config('services.gemini.key');
-        $model = config('services.gemini.model', 'gemini-2.5-flash');
+        $result = $this->aiService->extractFromAudio($fullPath, $mimeType);
 
-        if (empty($apiKey)) {
-            $workLog = WorkLog::create([
-                'title' => 'Log Suara ('.date('d M Y H:i').')',
-                'audio_path' => $audioRelativePath,
-                'transcript' => 'GEMINI_API_KEY tidak dikonfigurasi di .env atau config/services.php. Silakan isi data secara manual.',
-                'status' => 'completed',
-                'type' => 'other',
-            ]);
+        $workLogData = array_merge($result['data'], [
+            'audio_path' => $audioRelativePath,
+            'source' => 'voice',
+        ]);
 
-            return redirect()->route('logs.edit', $workLog->id)
-                ->with('error', 'API Key Gemini belum diatur di .env. Audio telah disimpan, silakan melengkapi data secara manual.');
+        $workLog = WorkLog::create($workLogData);
+
+        if (! $result['success']) {
+            return redirect()->route('logs.edit', $workLog)
+                ->with('error', $result['error'] ?? 'Gagal memproses audio dengan Gemini API. Detail tersimpan, silakan lengkapi manual.');
         }
 
-        // Call Gemini API with audio
-        try {
-            $audioBase64 = base64_encode(file_get_contents($fullPath));
-            $mimeType = $file->getClientMimeType() ?: 'audio/webm';
+        return redirect()->route('logs.show', $workLog)
+            ->with('success', 'Voice work log berhasil diproses dan disimpan oleh Gemini AI!');
+    }
 
-            $promptText = 'Transkripkan audio (bahasa Indonesia/Inggris campur), lalu ekstrak ke JSON dengan field:
-- title (judul singkat)
-- project
-- module
-- type (enum: feature, bug_fix, improvement, refactor, other)
-- problem
-- before (kondisi sebelum perubahan)
-- actions (array string: apa saja yang dikerjakan)
-- after (kondisi setelah perubahan)
-- impact (dampak ke user/proses/bisnis)
-- testing (array string)
-- technologies (array string)
-- status (enum: completed, in_progress, blocked)
-- next_step
-- tags (array)
-- logged_at (tanggal format YYYY-MM-DD jika disebut di audio, kalau tidak ada pakai null)
-- transcript (transkrip lengkap)
+    /**
+     * Store a newly created work log from text input.
+     */
+    public function storeText(Request $request)
+    {
+        $validated = $request->validate([
+            'content' => 'required|string|min:20|max:5000',
+        ]);
 
-Aturan: JANGAN mengarang. Kalau suatu informasi tidak disebut di audio, isi null atau array kosong. Tulis isi field dalam bahasa yang sama dengan yang diucapkan. Kembalikan HANYA JSON valid.';
+        $result = $this->aiService->extractFromText($validated['content']);
 
-            $response = Http::timeout(90)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
-                'contents' => [
-                    [
-                        'parts' => [
-                            [
-                                'inlineData' => [
-                                    'mimeType' => $mimeType,
-                                    'data' => $audioBase64,
-                                ],
-                            ],
-                            [
-                                'text' => $promptText,
-                            ],
-                        ],
-                    ],
-                ],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                ],
-            ]);
+        $workLogData = array_merge($result['data'], [
+            'audio_path' => null,
+            'source' => 'text',
+        ]);
 
-            if ($response->failed()) {
-                // Try fallback model if 2.5-flash failed
-                $fallbackModel = 'gemini-1.5-flash';
-                $response = Http::timeout(90)->post("https://generativelanguage.googleapis.com/v1beta/models/{$fallbackModel}:generateContent?key={$apiKey}", [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                [
-                                    'inlineData' => [
-                                        'mimeType' => $mimeType,
-                                        'data' => $audioBase64,
-                                    ],
-                                ],
-                                [
-                                    'text' => $promptText,
-                                ],
-                            ],
-                        ],
-                    ],
-                    'generationConfig' => [
-                        'responseMimeType' => 'application/json',
-                    ],
-                ]);
-            }
+        $workLog = WorkLog::create($workLogData);
 
-            if ($response->failed()) {
-                Log::error('Gemini API Error: '.$response->body());
-                $workLog = WorkLog::create([
-                    'title' => 'Log Suara ('.date('d M Y H:i').')',
-                    'audio_path' => $audioRelativePath,
-                    'transcript' => 'Gagal memanggil API Gemini: '.$response->status().' - '.$response->reason(),
-                    'status' => 'completed',
-                    'type' => 'other',
-                ]);
-
-                return redirect()->route('logs.edit', $workLog->id)
-                    ->with('error', 'Gagal memproses audio dengan Gemini API. Audio tersimpan, silakan isi detail secara manual.');
-            }
-
-            $responseData = $response->json();
-            $rawContent = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? '';
-
-            // Clean markdown blocks if present
-            $cleanedJson = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', trim($rawContent));
-            $parsed = json_decode($cleanedJson, true);
-
-            if (! is_array($parsed)) {
-                // Fallback: Gemini returned invalid JSON
-                $workLog = WorkLog::create([
-                    'title' => 'Log Suara ('.date('d M Y H:i').')',
-                    'audio_path' => $audioRelativePath,
-                    'transcript' => $rawContent ?: 'Gemini mengembalikan teks non-JSON.',
-                    'status' => 'completed',
-                    'type' => 'other',
-                ]);
-
-                return redirect()->route('logs.edit', $workLog->id)
-                    ->with('warning', 'Gemini mengembalikan format JSON yang tidak valid. Transkrip & audio telah disimpan, silakan lengkapi data.');
-            }
-
-            // Valid JSON returned from Gemini
-            $validTypes = ['feature', 'bug_fix', 'improvement', 'refactor', 'other'];
-            $validStatuses = ['completed', 'in_progress', 'blocked'];
-
-            $type = in_array($parsed['type'] ?? '', $validTypes) ? $parsed['type'] : 'other';
-            $status = in_array($parsed['status'] ?? '', $validStatuses) ? $parsed['status'] : 'completed';
-
-            $workLog = WorkLog::create([
-                'title' => $parsed['title'] ?? 'Log Work Note ('.date('d M Y').')',
-                'project' => $parsed['project'] ?? null,
-                'module' => $parsed['module'] ?? null,
-                'type' => $type,
-                'status' => $status,
-                'problem' => $parsed['problem'] ?? null,
-                'before' => $parsed['before'] ?? null,
-                'actions' => is_array($parsed['actions'] ?? null) ? $parsed['actions'] : [],
-                'after' => $parsed['after'] ?? null,
-                'impact' => $parsed['impact'] ?? null,
-                'testing' => is_array($parsed['testing'] ?? null) ? $parsed['testing'] : [],
-                'technologies' => is_array($parsed['technologies'] ?? null) ? $parsed['technologies'] : [],
-                'next_step' => $parsed['next_step'] ?? null,
-                'tags' => is_array($parsed['tags'] ?? null) ? $parsed['tags'] : [],
-                'logged_at' => ! empty($parsed['logged_at']) ? $parsed['logged_at'] : now()->toDateString(),
-                'transcript' => $parsed['transcript'] ?? null,
-                'audio_path' => $audioRelativePath,
-            ]);
-
-            return redirect()->route('logs.show', $workLog->id)
-                ->with('success', 'Voice work log berhasil diproses dan disimpan oleh Gemini AI!');
-
-        } catch (\Exception $e) {
-            Log::error('Exception in WorkLogController@store: '.$e->getMessage());
-
-            $workLog = WorkLog::create([
-                'title' => 'Log Suara ('.date('d M Y H:i').')',
-                'audio_path' => $audioRelativePath,
-                'transcript' => 'Terjadi kesalahan sistem: '.$e->getMessage(),
-                'status' => 'completed',
-                'type' => 'other',
-            ]);
-
-            return redirect()->route('logs.edit', $workLog->id)
-                ->with('error', 'Terjadi kesalahan saat memproses audio. File audio berhasil disimpan, silakan edit detail manual.');
+        if (! $result['success']) {
+            return redirect()->route('logs.edit', $workLog)
+                ->with('warning', $result['error'] ?? 'Gemini mengembalikan format yang tidak valid. Teks telah disimpan, silakan lengkapi data.');
         }
+
+        return redirect()->route('logs.show', $workLog)
+            ->with('success', 'Text work log berhasil diproses dan disimpan oleh Gemini AI!');
     }
 
     /**
      * Display the specified work log detail.
      */
-    public function show($id)
+    public function show(WorkLog $workLog)
     {
-        $workLog = WorkLog::findOrFail($id);
-
         return view('logs.show', compact('workLog'));
     }
 
     /**
      * Show the form for editing the specified work log.
      */
-    public function edit($id)
+    public function edit(WorkLog $workLog)
     {
-        $workLog = WorkLog::findOrFail($id);
-
         return view('logs.edit', compact('workLog'));
     }
 
     /**
      * Update the specified work log in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, WorkLog $workLog)
     {
-        $workLog = WorkLog::findOrFail($id);
-
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'project' => 'nullable|string|max:255',
@@ -329,17 +205,15 @@ Aturan: JANGAN mengarang. Kalau suatu informasi tidak disebut di audio, isi null
             'transcript' => $validated['transcript'],
         ]);
 
-        return redirect()->route('logs.show', $workLog->id)
+        return redirect()->route('logs.show', $workLog)
             ->with('success', 'Work log berhasil diperbarui!');
     }
 
     /**
      * Remove the specified work log from storage.
      */
-    public function destroy($id)
+    public function destroy(WorkLog $workLog)
     {
-        $workLog = WorkLog::findOrFail($id);
-
         if ($workLog->audio_path && file_exists(public_path($workLog->audio_path))) {
             @unlink(public_path($workLog->audio_path));
         }

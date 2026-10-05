@@ -6,7 +6,7 @@
 <div class="max-w-4xl mx-auto space-y-6">
 
     <div class="flex items-center justify-between">
-        <a href="{{ route('logs.show', $workLog->id) }}" class="inline-flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white transition-colors">
+        <a href="{{ route('logs.show', $workLog->id_work_log) }}" class="inline-flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
             Batal & Kembali ke Detail
         </a>
@@ -19,7 +19,7 @@
             <p class="text-xs text-slate-400 mt-1">Sesuaikan atau lengkapi data hasil ekstraksi AI Gemini jika terdapat ketidaksesuaian.</p>
         </div>
 
-        <form action="{{ route('logs.update', $workLog->id) }}" method="POST" class="space-y-6">
+        <form action="{{ route('logs.update', $workLog->id_work_log) }}" method="POST" class="space-y-6">
             @csrf
             @method('PUT')
 
@@ -137,7 +137,7 @@
 
             <!-- Submit Button -->
             <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-                <a href="{{ route('logs.show', $workLog->id) }}" class="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-all border border-slate-700">
+                <a href="{{ route('logs.show', $workLog->id_work_log) }}" class="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-all border border-slate-700">
                     Batal
                 </a>
                 <button type="submit" class="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/30 transition-all">

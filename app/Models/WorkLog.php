@@ -10,6 +10,7 @@ class WorkLog extends Model
     use HasFactory;
 
     protected $table = 'work_logs';
+
     protected $primaryKey = 'id_work_log';
 
     protected $fillable = [
@@ -30,6 +31,7 @@ class WorkLog extends Model
         'logged_at',
         'transcript',
         'audio_path',
+        'source',
     ];
 
     /**

@@ -118,6 +118,17 @@
                                     <!-- Title & Meta -->
                                     <div class="space-y-1.5 flex-1">
                                         <div class="flex flex-wrap items-center gap-2">
+                                            <!-- Source Badge -->
+                                            @if(($log->source ?? 'voice') === 'text')
+                                                <span class="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" title="Input dari Teks">
+                                                    ⌨️ Text
+                                                </span>
+                                            @else
+                                                <span class="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30" title="Input dari Voice Note">
+                                                    🎙️ Voice
+                                                </span>
+                                            @endif
+
                                             <!-- Project & Module Badges -->
                                             @if($log->project)
                                                 <span class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700">
@@ -165,7 +176,7 @@
                                         </div>
 
                                         <h3 class="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">
-                                            <a href="{{ route('logs.show', $log->id) }}">
+                                            <a href="{{ route('logs.show', $log->id_work_log) }}">
                                                 {{ $log->title }}
                                             </a>
                                         </h3>
@@ -173,10 +184,10 @@
 
                                     <!-- Action Buttons -->
                                     <div class="flex items-center gap-2 self-start shrink-0">
-                                        <a href="{{ route('logs.show', $log->id) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-all border border-slate-700">
+                                        <a href="{{ route('logs.show', $log->id_work_log) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-all border border-slate-700">
                                             Lihat Detail
                                         </a>
-                                        <a href="{{ route('logs.edit', $log->id) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all border border-indigo-500/30">
+                                        <a href="{{ route('logs.edit', $log->id_work_log) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all border border-indigo-500/30">
                                             Edit
                                         </a>
                                     </div>

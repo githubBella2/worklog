@@ -12,11 +12,11 @@
             Kembali ke Timeline
         </a>
         <div class="flex items-center gap-2">
-            <a href="{{ route('logs.edit', $workLog->id) }}" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition-all flex items-center gap-1.5">
+            <a href="{{ route('logs.edit', $workLog->id_work_log) }}" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition-all flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                 Edit Log
             </a>
-            <form action="{{ route('logs.destroy', $workLog->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus log pekerjaan ini?');">
+            <form action="{{ route('logs.destroy', $workLog->id_work_log) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus log pekerjaan ini?');">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-all flex items-center gap-1.5">
@@ -33,6 +33,16 @@
         <!-- Header: Title, Project, Module, Date, Badges -->
         <div class="space-y-3 pb-6 border-b border-slate-800">
             <div class="flex flex-wrap items-center gap-2">
+                @if(($workLog->source ?? 'voice') === 'text')
+                    <span class="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" title="Input dari Teks">
+                        ⌨️ Text
+                    </span>
+                @else
+                    <span class="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40" title="Input dari Voice Note">
+                        🎙️ Voice
+                    </span>
+                @endif
+
                 @if($workLog->project)
                     <span class="px-3 py-1 rounded-lg text-xs font-mono font-medium bg-slate-800 text-slate-300 border border-slate-700">
                         📁 {{ $workLog->project }}{{ $workLog->module ? ' / ' . $workLog->module : '' }}
@@ -208,13 +218,13 @@
             </div>
         @endif
 
-        <!-- Original Transcript Collapsible -->
+        <!-- Original Transcript / Text Input Collapsible -->
         @if($workLog->transcript)
             <details class="group rounded-2xl bg-slate-900/60 border border-slate-800/80 overflow-hidden">
                 <summary class="p-4 text-xs font-bold text-slate-300 hover:text-white cursor-pointer flex items-center justify-between select-none">
                     <span class="flex items-center gap-2">
                         <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Transkrip Lengkap Voice Note (AI Gemini)
+                        {{ ($workLog->source ?? 'voice') === 'text' ? 'Teks Asli Input Developer' : 'Transkrip Lengkap Voice Note (AI Gemini)' }}
                     </span>
                     <span class="text-indigo-400 group-open:rotate-180 transition-transform duration-200">▼</span>
                 </summary>
