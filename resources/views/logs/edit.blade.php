@@ -19,7 +19,7 @@
             <p class="text-xs text-slate-400 mt-1">Sesuaikan atau lengkapi data hasil ekstraksi AI Gemini jika terdapat ketidaksesuaian.</p>
         </div>
 
-        <form action="{{ route('logs.update', $workLog->id_work_log) }}" method="POST" class="space-y-6">
+        <form id="editForm" action="{{ route('logs.update', $workLog->id_work_log) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
             @method('PUT')
 
@@ -76,19 +76,44 @@
                 <textarea name="problem" id="problem" rows="3" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">{{ old('problem', $workLog->problem) }}</textarea>
             </div>
 
-            <!-- BEFORE & AFTER -->
+            <!-- BEFORE & AFTER (teks + screenshot dalam satu kartu) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- BEFORE -->
-                <div class="p-4 rounded-2xl bg-red-950/20 border border-red-900/40 space-y-2">
-                    <label for="before" class="block text-xs font-bold text-red-400 uppercase tracking-wider">❌ BEFORE (Kondisi Sebelum)</label>
-                    <textarea name="before" id="before" rows="4" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500">{{ old('before', $workLog->before) }}</textarea>
-                </div>
+                @php
+                    $kinds = [
+                        'before' => ['label' => '❌ BEFORE (Kondisi Sebelum)', 'box' => 'bg-red-950/20 border-red-900/40', 'text' => 'text-red-400', 'ring' => 'focus:ring-red-500 focus:border-red-500', 'images' => $workLog->beforeImages],
+                        'after' => ['label' => '✅ AFTER (Kondisi Sesudah)', 'box' => 'bg-emerald-950/20 border-emerald-900/40', 'text' => 'text-emerald-400', 'ring' => 'focus:ring-emerald-500 focus:border-emerald-500', 'images' => $workLog->afterImages],
+                    ];
+                @endphp
+                @foreach ($kinds as $kind => $cfg)
+                    <div class="p-4 rounded-2xl border {{ $cfg['box'] }} space-y-4">
+                        <label for="{{ $kind }}" class="block text-xs font-bold {{ $cfg['text'] }} uppercase tracking-wider">{{ $cfg['label'] }}</label>
+                        <textarea name="{{ $kind }}" id="{{ $kind }}" rows="4" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl p-3 text-sm focus:ring-2 {{ $cfg['ring'] }}">{{ old($kind, $workLog->{$kind}) }}</textarea>
 
-                <!-- AFTER -->
-                <div class="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-900/40 space-y-2">
-                    <label for="after" class="block text-xs font-bold text-emerald-400 uppercase tracking-wider">✅ AFTER (Kondisi Sesudah)</label>
-                    <textarea name="after" id="after" rows="4" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">{{ old('after', $workLog->after) }}</textarea>
-                </div>
+                        <!-- Screenshot yang sudah ada -->
+                        @if ($cfg['images']->isNotEmpty())
+                            <div class="space-y-2">
+                                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Screenshot tersimpan ({{ $cfg['images']->count() }})</div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    @foreach ($cfg['images'] as $image)
+                                        <div class="p-2 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+                                            <a href="{{ $image->url }}" target="_blank" class="block aspect-video rounded-lg overflow-hidden border border-slate-700">
+                                                <img src="{{ $image->url }}" alt="" loading="lazy" class="w-full h-full object-cover">
+                                            </a>
+                                            <div class="flex gap-1.5">
+                                                <input type="text" name="caption" form="cap-{{ $image->id_work_log_image }}" value="{{ $image->caption }}" maxlength="255" placeholder="Caption (opsional)" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 text-slate-200 rounded-lg px-2 py-1 text-[11px] focus:ring-2 focus:ring-indigo-500">
+                                                <button type="submit" form="cap-{{ $image->id_work_log_image }}" class="px-2 py-1 rounded-lg text-[11px] font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30">Simpan</button>
+                                            </div>
+                                            <button type="submit" form="del-{{ $image->id_work_log_image }}" class="text-[11px] text-rose-400 hover:text-rose-300">🗑 Hapus gambar</button>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Tambah screenshot baru (ikut tersimpan saat klik "Simpan Perubahan") -->
+                        @include('logs.partials.image-uploader', ['kind' => $kind])
+                    </div>
+                @endforeach
             </div>
 
             <!-- WHAT I DID (Actions) -->
@@ -147,4 +172,20 @@
         </form>
     </div>
 </div>
+
+{{-- Form tersembunyi untuk caption & hapus gambar (di luar form utama; dipanggil lewat atribut form="...") --}}
+@foreach ($workLog->images as $image)
+    <form id="cap-{{ $image->id_work_log_image }}" action="{{ route('logs.images.update', [$workLog, $image]) }}" method="POST" class="hidden">
+        @csrf
+        @method('PUT')
+    </form>
+    <form id="del-{{ $image->id_work_log_image }}" action="{{ route('logs.images.destroy', [$workLog, $image]) }}" method="POST" class="hidden" onsubmit="return confirm('Hapus screenshot ini?');">
+        @csrf
+        @method('DELETE')
+    </form>
+@endforeach
+@endsection
+
+@section('scripts')
+    @include('logs.partials.image-uploader-js')
 @endsection

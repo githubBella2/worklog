@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\WorkLogController;
+use App\Http\Controllers\WorkLogImageController;
+use App\Http\Controllers\WorkLogReportController;
 use Illuminate\Support\Facades\Route;
 
 // Timeline & Filter
@@ -19,3 +21,13 @@ Route::get('/logs/{workLog}', [WorkLogController::class, 'show'])->name('logs.sh
 Route::get('/logs/{workLog}/edit', [WorkLogController::class, 'edit'])->name('logs.edit');
 Route::put('/logs/{workLog}', [WorkLogController::class, 'update'])->name('logs.update');
 Route::delete('/logs/{workLog}', [WorkLogController::class, 'destroy'])->name('logs.destroy');
+
+// Before/After Screenshots
+Route::get('/logs/{workLog}/download', [WorkLogImageController::class, 'download'])->name('logs.download');
+Route::post('/logs/{workLog}/images', [WorkLogImageController::class, 'store'])->name('logs.images.store');
+Route::put('/logs/{workLog}/images/{image}', [WorkLogImageController::class, 'update'])->name('logs.images.update');
+Route::delete('/logs/{workLog}/images/{image}', [WorkLogImageController::class, 'destroy'])->name('logs.images.destroy');
+
+// KPI Report (printable page + ZIP download)
+Route::get('/report', [WorkLogReportController::class, 'index'])->name('logs.report');
+Route::get('/report/zip', [WorkLogReportController::class, 'zip'])->name('logs.report.zip');

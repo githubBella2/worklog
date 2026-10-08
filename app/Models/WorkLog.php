@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkLog extends Model
 {
@@ -48,6 +49,23 @@ class WorkLog extends Model
             'tags' => 'array',
             'logged_at' => 'date',
         ];
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(WorkLogImage::class, 'id_work_log', 'id_work_log')
+            ->orderBy('sort_order')
+            ->orderBy('id_work_log_image');
+    }
+
+    public function beforeImages(): HasMany
+    {
+        return $this->images()->where('kind', 'before');
+    }
+
+    public function afterImages(): HasMany
+    {
+        return $this->images()->where('kind', 'after');
     }
 
     /**

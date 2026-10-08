@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\WorkLog;
 use App\Services\WorkLogAiService;
+use App\Services\WorkLogImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -11,7 +12,8 @@ use Illuminate\Support\Str;
 class WorkLogController extends Controller
 {
     public function __construct(
-        protected WorkLogAiService $aiService
+        protected WorkLogAiService $aiService,
+        protected WorkLogImageService $images
     ) {}
 
     /**
@@ -19,8 +21,7 @@ class WorkLogController extends Controller
      */
     public function index(Request $request)
     {
-        $query = WorkLog::query();
-
+                $query = WorkLog::query()->withCount(['beforeImages', 'afterImages'])->with('images');
         if ($request->filled('project')) {
             $query->where('project', $request->project);
         }
@@ -71,9 +72,9 @@ class WorkLogController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $request->validate(array_merge([
             'audio' => 'required|file|max:30720', // max 30MB
-        ]);
+        ], WorkLogImageService::rules()), WorkLogImageService::messages());
 
         $file = $request->file('audio');
 
@@ -99,6 +100,7 @@ class WorkLogController extends Controller
         ]);
 
         $workLog = WorkLog::create($workLogData);
+        $this->images->storeFromRequest($request, $workLog);
 
         if (! $result['success']) {
             return redirect()->route('logs.edit', $workLog)
@@ -114,9 +116,9 @@ class WorkLogController extends Controller
      */
     public function storeText(Request $request)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'content' => 'required|string|min:20|max:5000',
-        ]);
+        ], WorkLogImageService::rules()), WorkLogImageService::messages());
 
         $result = $this->aiService->extractFromText($validated['content']);
 
@@ -126,6 +128,7 @@ class WorkLogController extends Controller
         ]);
 
         $workLog = WorkLog::create($workLogData);
+        $this->images->storeFromRequest($request, $workLog);
 
         if (! $result['success']) {
             return redirect()->route('logs.edit', $workLog)
@@ -141,6 +144,8 @@ class WorkLogController extends Controller
      */
     public function show(WorkLog $workLog)
     {
+        $workLog->load(['beforeImages', 'afterImages']);
+
         return view('logs.show', compact('workLog'));
     }
 
@@ -149,6 +154,8 @@ class WorkLogController extends Controller
      */
     public function edit(WorkLog $workLog)
     {
+        $workLog->load(['beforeImages', 'afterImages']);
+
         return view('logs.edit', compact('workLog'));
     }
 
@@ -218,6 +225,7 @@ class WorkLogController extends Controller
             @unlink(public_path($workLog->audio_path));
         }
 
+        $this->images->deleteAllFor($workLog);
         $workLog->delete();
 
         return redirect()->route('logs.index')

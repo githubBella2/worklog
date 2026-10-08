@@ -12,6 +12,9 @@
             Kembali ke Timeline
         </a>
         <div class="flex items-center gap-2">
+            <a href="{{ route('logs.download', $workLog) }}" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all flex items-center gap-1.5" title="Download ringkasan + semua screenshot (ZIP)">
+                ⬇ ZIP
+            </a>
             <a href="{{ route('logs.edit', $workLog->id_work_log) }}" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition-all flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                 Edit Log
@@ -101,9 +104,12 @@
                 <div class="flex items-center gap-2 text-red-400 font-bold text-sm tracking-wide">
                     <span class="text-lg">❌</span> BEFORE (Kondisi Sebelum)
                 </div>
-                <p class="text-xs sm:text-sm text-red-100/90 leading-relaxed font-sans">
-                    {{ $workLog->before ?: 'Tidak dicantumkan dalam catatan.' }}
-                </p>
+                @if ($workLog->before)
+                    <p class="text-xs sm:text-sm text-red-100/90 leading-relaxed font-sans">{{ $workLog->before }}</p>
+                @elseif ($workLog->beforeImages->isEmpty())
+                    <p class="text-xs sm:text-sm text-red-100/60 italic font-sans">Tidak dicantumkan dalam catatan.</p>
+                @endif
+                @include('logs.partials.gallery', ['images' => $workLog->beforeImages, 'group' => 'before'])
             </div>
 
             <!-- AFTER Block (Light Green Block) -->
@@ -111,9 +117,12 @@
                 <div class="flex items-center gap-2 text-emerald-400 font-bold text-sm tracking-wide">
                     <span class="text-lg">✅</span> AFTER (Kondisi Sesudah)
                 </div>
-                <p class="text-xs sm:text-sm text-emerald-100/90 leading-relaxed font-sans">
-                    {{ $workLog->after ?: 'Tidak dicantumkan dalam catatan.' }}
-                </p>
+                @if ($workLog->after)
+                    <p class="text-xs sm:text-sm text-emerald-100/90 leading-relaxed font-sans">{{ $workLog->after }}</p>
+                @elseif ($workLog->afterImages->isEmpty())
+                    <p class="text-xs sm:text-sm text-emerald-100/60 italic font-sans">Tidak dicantumkan dalam catatan.</p>
+                @endif
+                @include('logs.partials.gallery', ['images' => $workLog->afterImages, 'group' => 'after'])
             </div>
         </div>
 
@@ -236,4 +245,8 @@
 
     </div>
 </div>
+@endsection
+
+@section('scripts')
+    @include('logs.partials.lightbox')
 @endsection
