@@ -13,3 +13,4 @@ public/uploads
 public/build
 public/hot
 .agents
+bootstrap/cache/*.php

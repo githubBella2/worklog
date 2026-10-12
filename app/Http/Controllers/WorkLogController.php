@@ -163,7 +163,7 @@ class WorkLogController extends Controller
      */
     public function update(Request $request, WorkLog $workLog)
     {
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'title' => 'required|string|max:255',
             'project' => 'nullable|string|max:255',
             'module' => 'nullable|string|max:255',
@@ -180,7 +180,7 @@ class WorkLogController extends Controller
             'tags_raw' => 'nullable|string',
             'logged_at' => 'required|date',
             'transcript' => 'nullable|string',
-        ]);
+        ], WorkLogImageService::rules()), WorkLogImageService::messages());
 
         // Helper to split text lines or commas into clean arrays
         $parseList = function (?string $raw) {
@@ -211,8 +211,13 @@ class WorkLogController extends Controller
             'transcript' => $validated['transcript'],
         ]);
 
+        // Simpan screenshot before/after baru yang dipilih di form edit
+        $stored = $this->images->storeFromRequest($request, $workLog);
+
         return redirect()->route('logs.show', $workLog)
-            ->with('success', 'Work log berhasil diperbarui!');
+            ->with('success', $stored > 0
+                ? "Work log berhasil diperbarui! {$stored} screenshot baru ditambahkan."
+                : 'Work log berhasil diperbarui!');
     }
 
     /**
