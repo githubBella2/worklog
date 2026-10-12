@@ -7,6 +7,7 @@ use App\Services\WorkLogAiService;
 use App\Services\WorkLogImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class WorkLogController extends Controller
@@ -78,21 +79,19 @@ class WorkLogController extends Controller
 
         $file = $request->file('audio');
 
-        // Save audio file locally in public directory
+        // Simpan audio di disk worklog (lokal: public, production: S3/Supabase)
         $extension = $file->getClientOriginalExtension() ?: 'webm';
         $filename = time().'_'.Str::random(8).'.'.$extension;
-        $destinationPath = public_path('uploads/audio_logs');
-
-        if (! file_exists($destinationPath)) {
-            mkdir($destinationPath, 0755, true);
-        }
-
-        $file->move($destinationPath, $filename);
-        $audioRelativePath = 'uploads/audio_logs/'.$filename;
-        $fullPath = public_path($audioRelativePath);
         $mimeType = $file->getClientMimeType() ?: 'audio/webm';
 
-        $result = $this->aiService->extractFromAudio($fullPath, $mimeType);
+        $audioRelativePath = $file->storeAs('audio_logs', $filename, WorkLogImageService::disk());
+
+        if (! $audioRelativePath) {
+            return back()->withInput()->with('error', 'Gagal menyimpan file audio ke storage.');
+        }
+
+        // Gemini membaca dari file upload sementara (tetap ada sampai request selesai)
+        $result = $this->aiService->extractFromAudio($file->getRealPath(), $mimeType);
 
         $workLogData = array_merge($result['data'], [
             'audio_path' => $audioRelativePath,
@@ -221,8 +220,14 @@ class WorkLogController extends Controller
      */
     public function destroy(WorkLog $workLog)
     {
-        if ($workLog->audio_path && file_exists(public_path($workLog->audio_path))) {
-            @unlink(public_path($workLog->audio_path));
+        if ($workLog->audio_path) {
+            Storage::disk(WorkLogImageService::disk())->delete($workLog->audio_path);
+
+            // Data lama: audio disimpan di public/uploads/audio_logs
+            $legacy = public_path($workLog->audio_path);
+            if (file_exists($legacy)) {
+                @unlink($legacy);
+            }
         }
 
         $this->images->deleteAllFor($workLog);

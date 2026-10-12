@@ -13,6 +13,14 @@ class WorkLogImageService
     public const KINDS = ['before', 'after'];
 
     /**
+     * Disk tempat gambar/audio disimpan (lihat config/filesystems.php).
+     */
+    public static function disk(): string
+    {
+        return config('filesystems.worklog_disk', 'public');
+    }
+
+    /**
      * Validation rules for before_images[] and after_images[].
      */
     public static function rules(): array
@@ -56,7 +64,7 @@ class WorkLogImageService
                 continue;
             }
 
-            $path = $file->store("work-logs/{$log->id_work_log}", 'public');
+            $path = $file->store("work-logs/{$log->id_work_log}", self::disk());
 
             $log->images()->create([
                 'kind' => $kind,
@@ -88,12 +96,12 @@ class WorkLogImageService
 
     public function delete(WorkLogImage $image): void
     {
-        Storage::disk('public')->delete($image->path);
+        Storage::disk(self::disk())->delete($image->path);
         $image->delete();
     }
 
     public function deleteAllFor(WorkLog $log): void
     {
-        Storage::disk('public')->deleteDirectory("work-logs/{$log->id_work_log}");
+        Storage::disk(self::disk())->deleteDirectory("work-logs/{$log->id_work_log}");
     }
 }

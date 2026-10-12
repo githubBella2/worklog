@@ -39,8 +39,8 @@ class WorkLogExportService
             foreach (['before', 'after'] as $kind) {
                 $n = 0;
                 foreach ($log->images->where('kind', $kind) as $image) {
-                    $abs = Storage::disk('public')->path($image->path);
-                    if (! is_file($abs)) {
+                    $disk = Storage::disk(WorkLogImageService::disk());
+                    if (! $disk->exists($image->path)) {
                         continue;
                     }
                     $n++;
@@ -49,7 +49,7 @@ class WorkLogExportService
                     $slug = Str::slug(Str::limit((string) $label, 40, '')) ?: 'screenshot';
                     $entry = sprintf('%s/%s/%02d-%s.%s', $folder, $kind, $n, $slug, $ext);
 
-                    $zip->addFile($abs, $entry);
+                    $zip->addFromString($entry, $disk->get($image->path));
                     $paths[$kind][] = ['path' => $entry, 'caption' => $image->caption];
                 }
             }

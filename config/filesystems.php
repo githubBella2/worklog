@@ -16,6 +16,13 @@ return [
     'default' => env('FILESYSTEM_DISK', 'local'),
 
     /*
+    | Disk untuk gambar & audio worklog.
+    | Lokal: 'public'. Production (Render): 's3' (Supabase Storage).
+    */
+
+    'worklog_disk' => env('WORKLOG_DISK', 'public'),
+
+    /*
     |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
@@ -38,10 +45,18 @@ return [
             'report' => false,
         ],
 
+        // 'public' => [
+        //     'driver' => 'local',
+        //     'root' => storage_path('app/public'),
+        //     'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+        //     'visibility' => 'public',
+        //     'throw' => false,
+        //     'report' => false,
+        // ],
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            'url' => '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

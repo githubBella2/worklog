@@ -25,5 +25,5 @@ RUN composer install --no-dev --optimize-autoloader \
  && chown -R www-data:www-data storage bootstrap/cache
 
 COPY docker/start.sh /start.sh
-RUN chmod +x /start.sh
+RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 CMD ["/start.sh"]

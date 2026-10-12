@@ -29,6 +29,6 @@ class WorkLogImage extends Model
 
     protected function url(): Attribute
     {
-        return Attribute::get(fn () => Storage::disk('public')->url($this->path));
+        return Attribute::get(fn () => Storage::disk(config('filesystems.worklog_disk', 'public'))->url($this->path));
     }
 }
