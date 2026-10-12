@@ -155,22 +155,36 @@ Aturan: JANGAN mengarang. Kalau suatu informasi tidak disebut, isi null atau arr
      */
     protected function callGeminiAndParse(array $contents, string $apiKey, string $model, string $defaultTitlePrefix): array
     {
-        $response = Http::timeout(90)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
-            'contents' => $contents,
-            'generationConfig' => [
-                'responseMimeType' => 'application/json',
-            ],
-        ]);
+        // Coba model utama, lalu model cadangan (kalau diatur di .env).
+        // Error sementara (429/500/502/503/504 = server Gemini sibuk) otomatis diulang 3x.
+        $models = array_values(array_unique(array_filter([
+            $model,
+            config('services.gemini.fallback_model'),
+        ])));
 
-        if ($response->failed()) {
-            // Fallback model if primary model failed
-            $fallbackModel = 'gemini-1.5-flash';
-            $response = Http::timeout(90)->post("https://generativelanguage.googleapis.com/v1beta/models/{$fallbackModel}:generateContent?key={$apiKey}", [
-                'contents' => $contents,
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                ],
-            ]);
+        $response = null;
+        foreach ($models as $candidate) {
+            $response = Http::timeout(90)
+                ->retry(
+                    3,
+                    2500,
+                    fn ($exception) => $exception instanceof \Illuminate\Http\Client\RequestException
+                        ? in_array($exception->response->status(), [429, 500, 502, 503, 504])
+                        : true,
+                    throw: false
+                )
+                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$candidate}:generateContent?key={$apiKey}", [
+                    'contents' => $contents,
+                    'generationConfig' => [
+                        'responseMimeType' => 'application/json',
+                    ],
+                ]);
+
+            if ($response->successful()) {
+                break;
+            }
+
+            Log::warning("Gemini model {$candidate} gagal: ".$response->status());
         }
 
         if ($response->failed()) {

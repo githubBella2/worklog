@@ -73,16 +73,8 @@
                         merekam</p>
                 </div>
 
-                <!-- Screenshot Before/After (opsional) -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                    @include('logs.partials.image-uploader', ['kind' => 'before', 'form' => 'uploadForm'])
-                    @include('logs.partials.image-uploader', ['kind' => 'after', 'form' => 'uploadForm'])
-                </div>
-                <!-- Screenshot Before/After (opsional) -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                    @include('logs.partials.image-uploader', ['kind' => 'before', 'form' => 'uploadForm'])
-                    @include('logs.partials.image-uploader', ['kind' => 'after', 'form' => 'uploadForm'])
-                </div>
+                <!-- Bukti screenshot Before/After (satu kartu) -->
+                @include('logs.partials.image-uploader-combined', ['form' => 'uploadForm'])
 
                 <!-- Audio Preview & Upload Form -->
                 <div id="previewArea" class="hidden space-y-4 pt-6 border-t border-slate-800/80 text-left">
@@ -155,15 +147,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        @include('logs.partials.image-uploader', ['kind' => 'before'])
-                        @include('logs.partials.image-uploader', ['kind' => 'after'])
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        @include('logs.partials.image-uploader', ['kind' => 'before'])
-                        @include('logs.partials.image-uploader', ['kind' => 'after'])
-                    </div>
+                    @include('logs.partials.image-uploader-combined')
 
                     <button type="submit" id="textSubmitBtn"
                         class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-xl shadow-indigo-600/30 hover:scale-[1.01] transition-all flex items-center justify-center gap-2">
@@ -227,7 +211,7 @@
 @endsection
 
 @section('scripts')
-    @include('logs.partials.image-uploader-js')
+    @include('logs.partials.image-uploader-combined-js')
     <script>
         let mediaRecorder = null;
         let audioChunks = [];
